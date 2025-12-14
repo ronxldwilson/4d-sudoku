@@ -233,3 +233,83 @@ export const getFilledCellCount = (hypercube: HyperCube): number => {
   }
   return count;
 };
+
+/**
+ * Get conflicts for a placement at (w, z, y, x)
+ * Returns array of conflicting cells and their reasons
+ */
+export const getConflicts = (
+  hypercube: HyperCube,
+  w: number,
+  z: number,
+  y: number,
+  x: number,
+  val: string
+): Array<{ coords: [number, number, number, number]; reason: string }> => {
+  const conflicts: Array<{ coords: [number, number, number, number]; reason: string }> = [];
+
+  if (val === '') return conflicts;
+
+  // Check row in WZ layer
+  for (let col = 0; col < 9; col++) {
+    if (col !== x && hypercube[w][z][y][col] === val) {
+      conflicts.push({ coords: [w, z, y, col], reason: 'Same row' });
+    }
+  }
+
+  // Check column in WZ layer
+  for (let row = 0; row < 9; row++) {
+    if (row !== y && hypercube[w][z][row][x] === val) {
+      conflicts.push({ coords: [w, z, row, x], reason: 'Same column' });
+    }
+  }
+
+  // Check 3x3 box in WZ plane
+  const boxY = Math.floor(y / 3) * 3;
+  const boxX = Math.floor(x / 3) * 3;
+  for (let by = boxY; by < boxY + 3; by++) {
+    for (let bx = boxX; bx < boxX + 3; bx++) {
+      if ((by !== y || bx !== x) && hypercube[w][z][by][bx] === val) {
+        conflicts.push({ coords: [w, z, by, bx], reason: 'Same 3×3 box' });
+      }
+    }
+  }
+
+  // Check W-axis uniqueness
+  for (let wLayer = 0; wLayer < 9; wLayer++) {
+    if (wLayer !== w && hypercube[wLayer][z][y][x] === val) {
+      conflicts.push({ coords: [wLayer, z, y, x], reason: 'W-axis (4D)' });
+    }
+  }
+
+  // Check Z-axis uniqueness
+  for (let zLayer = 0; zLayer < 9; zLayer++) {
+    if (zLayer !== z && hypercube[w][zLayer][y][x] === val) {
+      conflicts.push({ coords: [w, zLayer, y, x], reason: 'Z-axis' });
+    }
+  }
+
+  return conflicts;
+};
+
+/**
+ * Get possible values for a cell
+ */
+export const getPossibleValues = (
+  hypercube: HyperCube,
+  w: number,
+  z: number,
+  y: number,
+  x: number
+): string[] => {
+  const possible: string[] = [];
+
+  for (let val = 1; val <= 9; val++) {
+    const valStr = val.toString();
+    if (getConflicts(hypercube, w, z, y, x, valStr).length === 0) {
+      possible.push(valStr);
+    }
+  }
+
+  return possible;
+};

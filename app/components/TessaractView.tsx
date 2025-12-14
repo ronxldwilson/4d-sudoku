@@ -29,12 +29,16 @@ interface TessaractViewProps {
   hypercube: HyperCube;
   onCellSelect?: (w: number, z: number, y: number, x: number) => void;
   onCellChange?: (w: number, z: number, y: number, x: number, val: string) => void;
+  filterWLayer?: number | null;  // If set, only show cells from this W-layer
+  autoRotate?: boolean;  // Enable/disable auto rotation
 }
 
 const TessaractView: React.FC<TessaractViewProps> = ({
   hypercube,
   onCellSelect,
   onCellChange,
+  filterWLayer = null,
+  autoRotate = false,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -52,14 +56,16 @@ const TessaractView: React.FC<TessaractViewProps> = ({
   });
 
   const [selectedCell, setSelectedCell] = useState<[number, number, number, number] | null>(null);
-  const [autoRotate, setAutoRotate] = useState(true);
   const [inputValue, setInputValue] = useState('');
 
-  // Generate all cell data
+  // Generate cell data with optional W-layer filtering
   const generateCellData = (): CellData[] => {
     const cells: CellData[] = [];
 
     for (let w = 0; w < 9; w++) {
+      // Skip if filtering and this isn't the selected W-layer
+      if (filterWLayer !== null && w !== filterWLayer) continue;
+
       for (let z = 0; z < 9; z++) {
         for (let y = 0; y < 9; y++) {
           for (let x = 0; x < 9; x++) {
@@ -125,7 +131,8 @@ const TessaractView: React.FC<TessaractViewProps> = ({
   useEffect(() => {
     if (!mountRef.current) return;
 
-    // Clear previous content
+    // Clear previous content and meshes
+    cellMeshesRef.current.clear();
     while (mountRef.current.firstChild) {
       mountRef.current.removeChild(mountRef.current.firstChild);
     }
@@ -158,11 +165,12 @@ const TessaractView: React.FC<TessaractViewProps> = ({
     scene.add(directionalLight);
 
     // Create cell geometries and materials
-    const cellGeometry = new THREE.SphereGeometry(0.12, 16, 16);
+    const cellGeometry = new THREE.SphereGeometry(0.12, 12, 12); // Reduced segments for performance
     const cellMeshes = cellMeshesRef.current;
-    cellMeshes.clear();
 
     const cells = generateCellData();
+    console.log(`Creating ${cells.length} cells for visualization`);
+    
     cells.forEach((cell) => {
       const material = new THREE.MeshPhongMaterial({
         color: getCellColor(cell),
@@ -179,6 +187,8 @@ const TessaractView: React.FC<TessaractViewProps> = ({
       scene.add(mesh);
       cellMeshes.set(cell.coords.join(','), mesh);
     });
+    
+    console.log(`Added ${cellMeshes.size} meshes to scene`);
 
     // Mouse raycasting setup
     const raycaster = new THREE.Raycaster();
@@ -206,8 +216,10 @@ const TessaractView: React.FC<TessaractViewProps> = ({
 
     // Animation loop
     let frameId: number;
+    let frameCount = 0;
     const animate = () => {
       frameId = requestAnimationFrame(animate);
+      frameCount++;
 
       // Auto-rotate - update ref without triggering re-render
       if (autoRotate) {
@@ -243,6 +255,11 @@ const TessaractView: React.FC<TessaractViewProps> = ({
       });
 
       renderer.render(scene, camera);
+      
+      // Log first frame to verify rendering started
+      if (frameCount === 1) {
+        console.log('Animation started, rendering cells');
+      }
     };
 
     animate();
@@ -268,7 +285,7 @@ const TessaractView: React.FC<TessaractViewProps> = ({
       renderer.dispose();
       scene.clear();
     };
-  }, [hypercube, autoRotate, selectedCell]);
+  }, [hypercube, autoRotate, selectedCell, filterWLayer]);
 
   // Handle keyboard input
   useEffect(() => {
@@ -307,12 +324,9 @@ const TessaractView: React.FC<TessaractViewProps> = ({
 
         {/* Controls */}
         <div className="absolute bottom-4 left-4 bg-black/70 text-white p-4 rounded text-xs space-y-2">
-          <button
-            onClick={() => setAutoRotate(!autoRotate)}
-            className={`block px-3 py-1 rounded ${autoRotate ? 'bg-green-600' : 'bg-gray-600'}`}
-          >
-            {autoRotate ? 'Auto Rotate: ON' : 'Auto Rotate: OFF'}
-          </button>
+          <div className={`px-3 py-1 rounded ${autoRotate ? 'bg-green-600' : 'bg-gray-600'}`}>
+            {autoRotate ? 'Rotating' : 'Paused'}
+          </div>
           <div>Click to select cell</div>
           <div>Press 1-9 to input value</div>
         </div>

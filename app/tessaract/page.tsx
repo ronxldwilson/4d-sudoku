@@ -8,6 +8,8 @@ import {
   isValidPlacement,
   getFilledCellCount,
   isPuzzleComplete,
+  getConflicts,
+  getPossibleValues,
 } from '../utils/fourDSudokuLogic';
 import myPuzzles from '../../data/myPuzzles';
 
@@ -40,6 +42,8 @@ function initHypercubeFromPuzzles(fillAll: boolean = false): HyperCube {
 export default function TessaractPage() {
   const [fillAll, setFillAll] = useState(false);
   const [hypercube, setHypercube] = useState<HyperCube>(() => initHypercubeFromPuzzles(fillAll));
+  const [filterWLayer, setFilterWLayer] = useState<number | null>(null);
+  const [autoRotate, setAutoRotate] = useState(false);
 
   const [selectedCell, setSelectedCell] = useState<[number, number, number, number] | null>(null);
   const [stats, setStats] = useState({ filled: getFilledCellCount(initHypercubeFromPuzzles(fillAll)), total: 6561 });
@@ -82,14 +86,33 @@ export default function TessaractPage() {
 
   const handleToggleFillAll = () => {
     const newFillAll = !fillAll;
+    console.log('Toggling fillAll to:', newFillAll);
     setFillAll(newFillAll);
     const hc = initHypercubeFromPuzzles(newFillAll);
+    const count = getFilledCellCount(hc);
+    console.log('Hypercube created with', count, 'filled cells');
     setHypercube(hc);
     setSelectedCell(null);
-    setStats({ filled: getFilledCellCount(hc), total: 6561 });
+    setStats({ filled: count, total: 6561 });
   };
 
   const isComplete = isPuzzleComplete(hypercube);
+  
+  // Get info about selected cell
+  const selectedCellInfo = selectedCell
+    ? {
+        value: hypercube[selectedCell[0]][selectedCell[1]][selectedCell[2]][selectedCell[3]],
+        conflicts: getConflicts(
+          hypercube,
+          selectedCell[0],
+          selectedCell[1],
+          selectedCell[2],
+          selectedCell[3],
+          hypercube[selectedCell[0]][selectedCell[1]][selectedCell[2]][selectedCell[3]]
+        ),
+        possible: getPossibleValues(hypercube, selectedCell[0], selectedCell[1], selectedCell[2], selectedCell[3]),
+      }
+    : null;
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -98,7 +121,7 @@ export default function TessaractPage() {
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold mb-2">4D Sudoku - Tessaract View</h1>
           <p className="text-cyan-300 text-lg">
-            Solving a 4D puzzle with 6,561 cells rotating through hyperspace
+            {filterWLayer !== null ? `Viewing W-Layer ${filterWLayer}` : 'Full 4D hypercube'} • {stats.filled}/{stats.total} cells filled
           </p>
         </div>
       </div>
@@ -111,11 +134,43 @@ export default function TessaractPage() {
             hypercube={hypercube}
             onCellSelect={handleCellSelect}
             onCellChange={handleCellChange}
+            filterWLayer={filterWLayer}
+            autoRotate={autoRotate}
           />
         </div>
 
         {/* Sidebar */}
-        <div className="w-80 flex flex-col gap-4">
+        <div className="w-96 flex flex-col gap-4 overflow-y-auto">
+          {/* Layer Filter Control */}
+          <div className="bg-gray-800 rounded-lg p-6 border border-purple-500/50 text-white">
+            <h2 className="text-xl font-bold mb-4">View Options</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-semibold mb-2">W-Layer Filter</label>
+                <select
+                  value={filterWLayer ?? 'all'}
+                  onChange={(e) => setFilterWLayer(e.target.value === 'all' ? null : parseInt(e.target.value))}
+                  className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+                >
+                  <option value="all">All Layers (Full 4D)</option>
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <option key={i} value={i}>
+                      Layer {i} (W = {i})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={() => setAutoRotate(!autoRotate)}
+                className={`w-full px-3 py-2 rounded font-semibold transition ${
+                  autoRotate ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'
+                }`}
+              >
+                {autoRotate ? '⏸ Pause Rotation' : '▶ Auto Rotate'}
+              </button>
+            </div>
+          </div>
+
           {/* Status Panel */}
           <div className="bg-gray-800 rounded-lg p-6 border border-cyan-500/50 text-white">
             <h2 className="text-xl font-bold mb-4">Status</h2>
@@ -145,20 +200,63 @@ export default function TessaractPage() {
               </div>
 
               {/* Selected Cell Info */}
-              {selectedCell && (
-                <div className="bg-gray-700 rounded p-4 border border-yellow-500/50">
-                  <h3 className="font-bold text-yellow-400 mb-2">Selected Cell</h3>
-                  <div className="text-sm space-y-1 font-mono">
-                    <div>W: <span className="text-cyan-300">{selectedCell[0]}</span></div>
-                    <div>Z: <span className="text-cyan-300">{selectedCell[1]}</span></div>
-                    <div>Y: <span className="text-cyan-300">{selectedCell[2]}</span></div>
-                    <div>X: <span className="text-cyan-300">{selectedCell[3]}</span></div>
-                    <div className="pt-2 border-t border-gray-600">
-                      Value: <span className="text-green-400">
-                        {hypercube[selectedCell[0]][selectedCell[1]][selectedCell[2]][selectedCell[3]] || 'empty'}
-                      </span>
+              {selectedCell && selectedCellInfo && (
+                <div className="bg-gray-700 rounded p-4 border border-yellow-500/50 space-y-3">
+                  <div>
+                    <h3 className="font-bold text-yellow-400 mb-2">Selected Cell</h3>
+                    <div className="text-sm space-y-1 font-mono">
+                      <div>W: <span className="text-cyan-300">{selectedCell[0]}</span></div>
+                      <div>Z: <span className="text-cyan-300">{selectedCell[1]}</span></div>
+                      <div>Y: <span className="text-cyan-300">{selectedCell[2]}</span></div>
+                      <div>X: <span className="text-cyan-300">{selectedCell[3]}</span></div>
+                      <div className="pt-2 border-t border-gray-600">
+                        Value: <span className="text-green-400">
+                          {selectedCellInfo.value || 'empty'}
+                        </span>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Possible Values */}
+                  {!selectedCellInfo.value && (
+                    <div className="pt-2 border-t border-gray-600">
+                      <h4 className="font-semibold text-blue-300 text-sm mb-2">Possible Values</h4>
+                      <div className="flex gap-1 flex-wrap">
+                        {selectedCellInfo.possible.length > 0 ? (
+                          selectedCellInfo.possible.map((val) => (
+                            <button
+                              key={val}
+                              onClick={() => handleCellChange(selectedCell[0], selectedCell[1], selectedCell[2], selectedCell[3], val)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-sm font-bold transition"
+                            >
+                              {val}
+                            </button>
+                          ))
+                        ) : (
+                          <span className="text-red-400 text-sm">No valid values</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Conflicts */}
+                  {selectedCellInfo.conflicts.length > 0 && (
+                    <div className="pt-2 border-t border-gray-600">
+                      <h4 className="font-semibold text-red-400 text-sm mb-2">
+                        Conflicts ({selectedCellInfo.conflicts.length})
+                      </h4>
+                      <div className="text-xs space-y-1 max-h-48 overflow-y-auto">
+                        {selectedCellInfo.conflicts.slice(0, 10).map((conflict, idx) => (
+                          <div key={idx} className="text-gray-300">
+                            <span className="text-red-300">{conflict.reason}:</span> ({conflict.coords[0]},{conflict.coords[1]},{conflict.coords[2]},{conflict.coords[3]})
+                          </div>
+                        ))}
+                        {selectedCellInfo.conflicts.length > 10 && (
+                          <div className="text-gray-400 italic">+{selectedCellInfo.conflicts.length - 10} more...</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
