@@ -12,7 +12,7 @@ import {
 import myPuzzles from '../../data/myPuzzles';
 
 // Helper function to initialize hypercube from puzzle array
-function initHypercubeFromPuzzles(): HyperCube {
+function initHypercubeFromPuzzles(fillAll: boolean = false): HyperCube {
   const hc = createEmptyHyperCube();
   
   for (let w = 0; w < myPuzzles.length; w++) {
@@ -22,7 +22,14 @@ function initHypercubeFromPuzzles(): HyperCube {
       for (let y = 0; y < zLayer.length; y++) {
         const row = zLayer[y];
         for (let x = 0; x < row.length; x++) {
-          hc[w][z][y][x] = row[x];
+          const val = row[x];
+          if (val !== '') {
+            hc[w][z][y][x] = val;
+          } else if (fillAll) {
+            // Fill empty cells with a cycling pattern (1-9)
+            const cellNumber = ((w + z + y + x) % 9) + 1;
+            hc[w][z][y][x] = cellNumber.toString();
+          }
         }
       }
     }
@@ -31,10 +38,11 @@ function initHypercubeFromPuzzles(): HyperCube {
 }
 
 export default function TessaractPage() {
-  const [hypercube, setHypercube] = useState<HyperCube>(() => initHypercubeFromPuzzles());
+  const [fillAll, setFillAll] = useState(false);
+  const [hypercube, setHypercube] = useState<HyperCube>(() => initHypercubeFromPuzzles(fillAll));
 
   const [selectedCell, setSelectedCell] = useState<[number, number, number, number] | null>(null);
-  const [stats, setStats] = useState({ filled: 0, total: 6561 });
+  const [stats, setStats] = useState({ filled: getFilledCellCount(initHypercubeFromPuzzles(fillAll)), total: 6561 });
 
   const handleCellSelect = (w: number, z: number, y: number, x: number) => {
     setSelectedCell([w, z, y, x]);
@@ -66,7 +74,16 @@ export default function TessaractPage() {
   };
 
   const handleReset = () => {
-    const hc = initHypercubeFromPuzzles();
+    const hc = initHypercubeFromPuzzles(fillAll);
+    setHypercube(hc);
+    setSelectedCell(null);
+    setStats({ filled: getFilledCellCount(hc), total: 6561 });
+  };
+
+  const handleToggleFillAll = () => {
+    const newFillAll = !fillAll;
+    setFillAll(newFillAll);
+    const hc = initHypercubeFromPuzzles(newFillAll);
     setHypercube(hc);
     setSelectedCell(null);
     setStats({ filled: getFilledCellCount(hc), total: 6561 });
@@ -174,6 +191,16 @@ export default function TessaractPage() {
 
           {/* Actions */}
           <div className="space-y-3">
+            <button
+              onClick={handleToggleFillAll}
+              className={`w-full font-bold py-3 px-4 rounded-lg transition ${
+                fillAll
+                  ? 'bg-purple-600 hover:bg-purple-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              } text-white`}
+            >
+              {fillAll ? '🔥 Full Hypercube' : '⚡ Fill All Cells'}
+            </button>
             <button
               onClick={handleReset}
               className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition"

@@ -40,9 +40,9 @@ const TessaractView: React.FC<TessaractViewProps> = ({
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cellMeshesRef = useRef<Map<string, THREE.Mesh>>(new Map());
-
-  const [selectedCell, setSelectedCell] = useState<[number, number, number, number] | null>(null);
-  const [rotationAngles, setRotationAngles] = useState({
+  
+  // Use ref for rotation angles to avoid triggering re-renders
+  const rotationAnglesRef = useRef({
     angleXY: 0,
     angleXZ: 0,
     angleXW: 0,
@@ -50,6 +50,8 @@ const TessaractView: React.FC<TessaractViewProps> = ({
     angleYW: 0,
     angleZW: 0,
   });
+
+  const [selectedCell, setSelectedCell] = useState<[number, number, number, number] | null>(null);
   const [autoRotate, setAutoRotate] = useState(true);
   const [inputValue, setInputValue] = useState('');
 
@@ -207,27 +209,24 @@ const TessaractView: React.FC<TessaractViewProps> = ({
     const animate = () => {
       frameId = requestAnimationFrame(animate);
 
-      // Auto-rotate
+      // Auto-rotate - update ref without triggering re-render
       if (autoRotate) {
-        setRotationAngles((prev) => ({
-          ...prev,
-          angleXY: (prev.angleXY + 0.002) % (Math.PI * 2),
-          angleXZ: (prev.angleXZ + 0.0015) % (Math.PI * 2),
-          angleXW: (prev.angleXW + 0.001) % (Math.PI * 2),
-          angleYZ: (prev.angleYZ + 0.0008) % (Math.PI * 2),
-        }));
+        rotationAnglesRef.current.angleXY = (rotationAnglesRef.current.angleXY + 0.015) % (Math.PI * 2);
+        rotationAnglesRef.current.angleXZ = (rotationAnglesRef.current.angleXZ + 0.012) % (Math.PI * 2);
+        rotationAnglesRef.current.angleXW = (rotationAnglesRef.current.angleXW + 0.009) % (Math.PI * 2);
+        rotationAnglesRef.current.angleYZ = (rotationAnglesRef.current.angleYZ + 0.006) % (Math.PI * 2);
       }
 
       // Update cell positions based on rotation
       cells.forEach((cell) => {
         const rotated = rotate4D(
           cell.position4D,
-          rotationAngles.angleXY,
-          rotationAngles.angleXZ,
-          rotationAngles.angleXW,
-          rotationAngles.angleYZ,
-          rotationAngles.angleYW,
-          rotationAngles.angleZW
+          rotationAnglesRef.current.angleXY,
+          rotationAnglesRef.current.angleXZ,
+          rotationAnglesRef.current.angleXW,
+          rotationAnglesRef.current.angleYZ,
+          rotationAnglesRef.current.angleYW,
+          rotationAnglesRef.current.angleZW
         );
 
         const projected = projectTo3D(rotated, 3);
@@ -269,7 +268,7 @@ const TessaractView: React.FC<TessaractViewProps> = ({
       renderer.dispose();
       scene.clear();
     };
-  }, [hypercube, autoRotate, rotationAngles, selectedCell]);
+  }, [hypercube, autoRotate, selectedCell]);
 
   // Handle keyboard input
   useEffect(() => {
