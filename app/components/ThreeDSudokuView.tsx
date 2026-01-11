@@ -49,6 +49,7 @@ function createTextTexture(text: string, textColor = 'black', bgColor = 'white')
 
 const ThreeDSudokuView: React.FC<ThreeDSudokuViewProps> = ({ cube }) => {
   const mountRef = useRef<HTMLDivElement>(null);
+  const [spacing, setSpacing] = useState<number>(0);
   const [selectedCoord, setSelectedCoord] = useState<[number, number, number] | null>(null);
 
   useEffect(() => {
@@ -96,7 +97,6 @@ const ThreeDSudokuView: React.FC<ThreeDSudokuViewProps> = ({ cube }) => {
     directionalLight.position.set(10, 10, 10);
     scene.add(directionalLight);
 
-    const spacing = 0;
     const offset = ((cellSize + spacing) * 9) / 2;
     const cubeMeshes: THREE.Mesh[] = [];
 
@@ -183,7 +183,7 @@ const ThreeDSudokuView: React.FC<ThreeDSudokuViewProps> = ({ cube }) => {
         }
 
         const [sx, sy, sz] = selectedCoord;
-        const value = cube[z][y][x];
+        const value = cube[z][y][x]; // reuse your existing value
 
         const sameXYLayer = z === sz && (x === sx || y === sy);
         const sameZCol = x === sx && y === sy;
@@ -192,16 +192,20 @@ const ThreeDSudokuView: React.FC<ThreeDSudokuViewProps> = ({ cube }) => {
           Math.floor(y / 3) === Math.floor(sy / 3);
 
         if (sameXYLayer || sameZCol || inSameBox) {
-          mat.color.setHex(0x2BCCFF);
-          mat.emissive.setHex(0x000066);
+          mat.color.setHex(0x2BCCFF);           // Blue
+          mat.emissive.setHex(0x000066);        // Soft blue glow
           mat.opacity = 1.0;
+
+          // ✅ Apply new texture with high contrast
           mat.map = getCachedTextTexture(value, 'black', 'white');
           mat.map.needsUpdate = true;
+
         } else {
-          mat.color.setHex(layerColors[z]);
+          mat.color.setHex(layerColors[z]);     // Restore original color
           mat.emissive.setHex(0x000000);
           mat.opacity = 0.9;
           mat.map = getCachedTextTexture(value, 'black', 'white');
+
           mat.map.needsUpdate = true;
         }
       });
@@ -216,19 +220,39 @@ const ThreeDSudokuView: React.FC<ThreeDSudokuViewProps> = ({ cube }) => {
       renderer.dispose();
       controls.dispose();
       scene.clear();
-      if (mountRef.current?.contains(renderer.domElement)) {
-        mountRef.current.removeChild(renderer.domElement);
-      }
+      mountRef.current?.removeChild(renderer.domElement);
     };
 
+
     window.removeEventListener('resize', handleResize);
-  }, [cube, selectedCoord]);
+  }, [cube, spacing, selectedCoord]);
 
   return (
-    <div
-      ref={mountRef}
-      className="w-full h-full rounded-lg shadow-md border bg-white"
-    />
+    <>
+      <div className="flex justify-center items-center w-full mt-6">
+        <div
+          ref={mountRef}
+          className="w-[80vw] max-w-[600px] h-[70vh] sm:h-[800px] rounded-lg shadow-md border bg-white"
+        />
+      </div>
+
+      <div className="flex flex-col items-center mt-4 space-y-2">
+        <label htmlFor="layerSpacing" className="text-black font-medium">
+          Layer Spacing:
+        </label>
+        <input
+          type="range"
+          id="layerSpacing"
+          min="0"
+          max="5"
+          step="0.1"
+          value={spacing}
+          onChange={(e) => setSpacing(parseFloat(e.target.value))}
+          className="w-64"
+        />
+      </div>
+    </>
+
   );
 };
 

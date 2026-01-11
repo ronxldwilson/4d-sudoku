@@ -22,7 +22,26 @@ export default function Home() {
       <div className="max-w-7xl mx-auto px-6 py-12">
         <h2 className="text-3xl font-bold text-white mb-8">Visualization Approaches</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* 4D Sudoku Game */}
+          <Link
+            href="/4d-sudoku"
+            className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-green-900 to-green-800 p-8 hover:shadow-2xl hover:shadow-green-500/50 transition duration-300"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-green-400/0 to-cyan-400/0 group-hover:from-green-400/10 group-hover:to-cyan-400/10 transition"></div>
+            <div className="relative z-10">
+              <div className="text-4xl mb-4">🎮</div>
+              <h3 className="text-2xl font-bold text-white mb-3">Play 4D Sudoku</h3>
+              <p className="text-gray-200 mb-4">
+                Solve 4D Sudoku puzzles. Challenge yourself with the ultimate puzzle experience.
+              </p>
+              <div className="flex items-center text-cyan-400 group-hover:gap-2 transition">
+                <span>Play</span>
+                <span className="opacity-0 group-hover:opacity-100 transition">→</span>
+              </div>
+            </div>
+          </Link>
+
           {/* Tessaract View */}
           <Link
             href="/tessaract"
